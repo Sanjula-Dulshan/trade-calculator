@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trade Risk Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0c10;
+    --surface: #12161c;
+    --surface-2: #1a1f27;
+    --border: #232933;
+    --text: #e7eaee;
+    --text-dim: #8a93a3;
+    --text-faint: #5b6472;
+    --buy: #16c784;
+    --sell: #ea3943;
+    --purple: #c060e8;
+    --purple-dim: rgba(192,96,232,0.14);
+    --yellow: #f0b90b;
+    --yellow-dim: rgba(240,185,11,0.10);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: radial-gradient(1200px 600px at 50% -10%, #131820 0%, #0a0c10 55%);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    padding: 32px 16px 60px;
+  }
+  .app{ width:100%; max-width: 460px; }
+  .top{
+    display:flex; align-items:baseline; justify-content:space-between; margin-bottom:18px;
+  }
+  .top h1{
+    font-family:'Space Grotesk', sans-serif; font-size:18px; font-weight:600; margin:0; letter-spacing:0.2px;
+  }
+  .top span{ color: var(--text-faint); font-size:11px; font-family:'IBM Plex Mono', monospace; }
+
+  .card{
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .card-title{
+    font-family:'Space Grotesk', sans-serif;
+    font-size: 11px; font-weight:600; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--text-faint); margin: 0 0 14px 0;
+  }
+  .card-title.risk{ color: var(--sell); }
+  .card-title.reward{ color: var(--buy); }
+
+  /* --- Setup card --- */
+  .row{ display:flex; gap:10px; margin-bottom:10px; }
+  .row:last-child{ margin-bottom:0; }
+  .field{ flex:1; min-width:0; }
+  .field label{
+    display:block; font-size:10.5px; color:var(--text-dim); margin-bottom:5px;
+    letter-spacing:0.4px; text-transform:uppercase; font-weight:500;
+  }
+  .ticker-row{ display:flex; gap:10px; align-items:flex-end; }
+  .ticker-field{ flex:1; }
+  .ticker-field input{
+    font-family:'Space Grotesk', sans-serif; font-size:20px; font-weight:700;
+    background:transparent; border:none; border-bottom:1px solid var(--border);
+    color:var(--text); width:100%; padding:2px 0 6px 0; outline:none;
+  }
+  .ticker-field input:focus{ border-bottom-color: var(--text-dim); }
+
+  .dir-toggle{ display:flex; border-radius:9px; overflow:hidden; border:1px solid var(--purple); }
+  .dir-toggle button{
+    border:none; background:var(--surface-2); color:var(--text-dim);
+    font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:12.5px;
+    padding:9px 14px; cursor:pointer; letter-spacing:0.5px;
+  }
+  .dir-toggle button.active-buy{ background: var(--buy); color:#04150e; }
+  .dir-toggle button.active-sell{ background: var(--sell); color:#1a0304; }
+
+  input.num{
+    width:100%; font-family:'IBM Plex Mono', monospace; font-size:15px; font-weight:600;
+    color: var(--text); background: var(--surface-2);
+    border:1px solid var(--border); border-radius:8px; padding:9px 10px;
+    outline:none; -moz-appearance:textfield;
+  }
+  input.num::-webkit-outer-spin-button, input.num::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  input.num:focus{ border-color: var(--text-dim); }
+
+  .edit-yellow input.num{ border-color: rgba(240,185,11,0.35); background: var(--yellow-dim); }
+  .edit-yellow input.num:focus{ border-color: var(--yellow); }
+  .edit-purple input.num{ border-color: rgba(192,96,232,0.35); background: var(--purple-dim); }
+  .edit-purple input.num:focus{ border-color: var(--purple); }
+
+  .hint-dot{
+    display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:5px; vertical-align:1px;
+  }
+  .hint-dot.y{ background: var(--yellow); }
+  .hint-dot.p{ background: var(--purple); }
+
+  /* --- Stat rows for computed values --- */
+  .stat{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding: 8px 0; border-bottom: 1px dashed var(--border);
+  }
+  .stat:last-child{ border-bottom:none; padding-bottom:0; }
+  .stat:first-child{ padding-top:0; }
+  .stat .label{ font-size:12.5px; color:var(--text-dim); }
+  .stat .value{ font-family:'IBM Plex Mono', monospace; font-size:14.5px; font-weight:600; }
+  .value.pos{ color: var(--buy); }
+  .value.neg{ color: var(--sell); }
+  .value.purple{ color: var(--purple); }
+  .value.plain{ color: var(--text); }
+
+  /* --- RR gauge (signature element) --- */
+  .rr-wrap{ margin-top:4px; }
+  .rr-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;}
+  .rr-top .rr-num{ font-family:'Space Grotesk', sans-serif; font-size:26px; font-weight:700; }
+  .rr-top .rr-label{ font-size:11px; color:var(--text-faint); letter-spacing:0.5px; text-transform:uppercase; }
+  .gauge{
+    position:relative; height:34px; border-radius:8px; overflow:hidden;
+    background: var(--surface-2); display:flex; border:1px solid var(--border);
+  }
+  .gauge .seg-loss{ background: linear-gradient(90deg, rgba(234,57,67,0.25), rgba(234,57,67,0.55)); }
+  .gauge .seg-profit{ background: linear-gradient(90deg, rgba(22,199,132,0.55), rgba(22,199,132,0.25)); }
+  .gauge .marker{
+    position:absolute; top:0; bottom:0; width:2px; background: var(--text);
+  }
+  .gauge-labels{ display:flex; justify-content:space-between; font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-dim); margin-top:6px; }
+  .gauge-labels .mid{ color: var(--text-faint); }
+
+  .warn{
+    margin-top:10px; font-size:11.5px; color: var(--sell); background: rgba(234,57,67,0.08);
+    border:1px solid rgba(234,57,67,0.3); border-radius:8px; padding:8px 10px;
+  }
+
+  .legend{
+    display:flex; gap:16px; justify-content:center; margin-top:6px; font-size:10.5px; color:var(--text-faint);
+  }
+  .legend span{ display:flex; align-items:center; gap:5px; }
+
+  .credit{
+    text-align:center; margin-top:18px; font-size:11px; color:var(--text-faint);
+    font-family:'Space Grotesk', sans-serif; letter-spacing:0.3px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="top">
+    <h1>Trade Risk Calculator</h1>
+    <span id="updated">live</span>
+  </div>
+
+  <!-- SETUP -->
+  <div class="card">
+    <div class="ticker-row" style="margin-bottom:16px;">
+      <div class="ticker-field">
+        <label style="font-size:10px;color:var(--text-faint);letter-spacing:.4px;text-transform:uppercase;">Ticker</label>
+        <input id="ticker" type="text" value="COIN" maxlength="10" autocomplete="off">
+      </div>
+      <div class="dir-toggle" role="group" aria-label="Direction">
+        <button id="btnBuy" type="button">BUY</button>
+        <button id="btnSell" type="button">SELL</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field edit-yellow">
+        <label><span class="hint-dot y"></span>Entry</label>
+        <input class="num" id="entry" type="number" step="any" value="265.03">
+      </div>
+      <div class="field edit-yellow">
+        <label><span class="hint-dot y"></span>Stop Loss</label>
+        <input class="num" id="sl" type="number" step="any" value="259.55">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field edit-yellow">
+        <label><span class="hint-dot y"></span>Take Profit</label>
+        <input class="num" id="tp" type="number" step="any" value="294.74">
+      </div>
+      <div class="field edit-yellow">
+        <label><span class="hint-dot y"></span>Leverage</label>
+        <input class="num" id="leverage" type="number" step="any" value="10">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field edit-purple">
+        <label><span class="hint-dot p"></span>Risk amount ($)</label>
+        <input class="num" id="risk" type="number" step="any" value="2">
+      </div>
+      <div class="field" style="visibility:hidden;"><label>&nbsp;</label><input class="num" tabindex="-1"></div>
+    </div>
+
+    <div id="warn" class="warn" style="display:none;"></div>
+  </div>
+
+  <!-- RISK -->
+  <div class="card">
+    <p class="card-title risk">Risk — if stopped out</p>
+    <div class="stat"><span class="label">Price change (SL)</span><span class="value neg" id="outSlChange">—</span></div>
+    <div class="stat"><span class="label">Price change %</span><span class="value neg" id="outSlPct">—</span></div>
+    <div class="stat"><span class="label">Position size</span><span class="value purple" id="outSize">—</span></div>
+    <div class="stat"><span class="label">Margin required</span><span class="value plain" id="outMargin">—</span></div>
+    <div class="stat"><span class="label">Loss ($)</span><span class="value neg" id="outLoss">—</span></div>
+    <div class="stat"><span class="label">ROI % (on margin)</span><span class="value neg" id="outRoiLoss">—</span></div>
+  </div>
+
+  <!-- REWARD -->
+  <div class="card">
+    <p class="card-title reward">Reward — if target hit</p>
+    <div class="stat"><span class="label">Price change (TP)</span><span class="value pos" id="outTpChange">—</span></div>
+    <div class="stat"><span class="label">Price change %</span><span class="value pos" id="outTpPct">—</span></div>
+    <div class="stat"><span class="label">ROI % (on margin)</span><span class="value pos" id="outRoiProfit">—</span></div>
+    <div class="stat"><span class="label">Profit ($)</span><span class="value pos" id="outProfit">—</span></div>
+  </div>
+
+  <!-- RR SUMMARY -->
+  <div class="card">
+    <div class="rr-wrap">
+      <div class="rr-top">
+        <span class="rr-label">Risk : Reward</span>
+        <span class="rr-num" id="outRR">—</span>
+      </div>
+      <div class="gauge">
+        <div class="seg-loss" id="segLoss" style="width:50%;"></div>
+        <div class="seg-profit" id="segProfit" style="width:50%;"></div>
+        <div class="marker" id="marker" style="left:50%;"></div>
+      </div>
+      <div class="gauge-labels">
+        <span id="glSL">SL</span>
+        <span class="mid">ENTRY</span>
+        <span id="glTP">TP</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="hint-dot y"></span>editable</span>
+    <span><span class="hint-dot p"></span>editable</span>
+    <span>all other fields are calculated</span>
+  </div>
+
+  <div class="credit">Calculation method by Asitha</div>
+
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const ids = ['entry','sl','tp','leverage','risk'];
+  let direction = 'BUY';
+
+  function fmt(n, d=2){
+    if(!isFinite(n)) return '—';
+    return n.toLocaleString(undefined, {minimumFractionDigits:d, maximumFractionDigits:d});
+  }
+  function fmtPct(n, d=2){
+    if(!isFinite(n)) return '—';
+    return (n*100).toLocaleString(undefined, {minimumFractionDigits:d, maximumFractionDigits:d}) + '%';
+  }
+
+  function setDirection(dir){
+    direction = dir;
+    $('btnBuy').className = dir === 'BUY' ? 'active-buy' : '';
+    $('btnSell').className = dir === 'SELL' ? 'active-sell' : '';
+    calc();
+  }
+  $('btnBuy').addEventListener('click', () => setDirection('BUY'));
+  $('btnSell').addEventListener('click', () => setDirection('SELL'));
+
+  ids.forEach(id => $(id).addEventListener('input', calc));
+
+  function calc(){
+    const entry = parseFloat($('entry').value);
+    const sl = parseFloat($('sl').value);
+    const tp = parseFloat($('tp').value);
+    const leverage = parseFloat($('leverage').value);
+    const risk = parseFloat($('risk').value);
+
+    const warnBox = $('warn');
+    warnBox.style.display = 'none';
+
+    if(!entry || !sl || !tp || !leverage || isNaN(risk)){
+      return;
+    }
+
+    // Mirrors the spreadsheet exactly:
+    // D5: price change to SL
+    const slChange = direction === 'SELL' ? (sl - entry) : (entry - sl);
+    // D6: % price change to SL
+    const slPct = slChange / entry;
+    // D8: SIZE = risk * entry / slChange
+    const size = risk * entry / slChange;
+    // B8: MARGIN = size / leverage
+    const margin = size / leverage;
+    // D9: LOSS = size * slChange / entry  (≈ risk, sanity check)
+    const loss = size * slChange / entry;
+    // D12: ROI% loss = -slPct * leverage
+    const roiLoss = -slPct * leverage;
+
+    // D16: price change to TP
+    const tpChange = direction === 'SELL' ? (entry - tp) : (tp - entry);
+    // D17: % price change to TP
+    const tpPct = tpChange / entry;
+    // D20: ROI% profit = tpPct * leverage
+    const roiProfit = tpPct * leverage;
+    // D22: PROFIT = size * |tp-entry| / entry
+    const profit = size * Math.abs(tp - entry) / entry;
+    // C23: RR = tpChange / slChange
+    const rr = tpChange / slChange;
+
+    if(slChange <= 0){
+      warnBox.style.display = 'block';
+      warnBox.textContent = 'Stop loss is on the wrong side of entry for a ' + direction + ' — check your levels.';
+    } else if(tpChange <= 0){
+      warnBox.style.display = 'block';
+      warnBox.textContent = 'Take profit is on the wrong side of entry for a ' + direction + ' — check your levels.';
+    }
+
+    $('outSlChange').textContent = fmt(slChange, 4);
+    $('outSlPct').textContent = fmtPct(slPct);
+    $('outSize').textContent = '$' + fmt(size);
+    $('outMargin').textContent = '$' + fmt(margin);
+    $('outLoss').textContent = '$' + fmt(loss);
+    $('outRoiLoss').textContent = fmtPct(roiLoss, 0);
+
+    $('outTpChange').textContent = fmt(tpChange, 4);
+    $('outTpPct').textContent = fmtPct(tpPct);
+    $('outRoiProfit').textContent = fmtPct(roiProfit, 0);
+    $('outProfit').textContent = '$' + fmt(profit);
+
+    $('outRR').textContent = isFinite(rr) ? fmt(rr) + 'R' : '—';
+
+    // gauge: proportion of loss-distance vs profit-distance
+    const lossD = Math.max(slChange, 0);
+    const profD = Math.max(tpChange, 0);
+    const total = lossD + profD;
+    if(total > 0){
+      const lossPctW = (lossD/total*100);
+      $('segLoss').style.width = lossPctW + '%';
+      $('segProfit').style.width = (100-lossPctW) + '%';
+      $('marker').style.left = lossPctW + '%';
+    }
+    $('glSL').textContent = 'SL ' + fmt(sl, 2);
+    $('glTP').textContent = 'TP ' + fmt(tp, 2);
+  }
+
+  setDirection('BUY');
+</script>
+</body>
+</html>
